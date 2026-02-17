@@ -20,6 +20,9 @@ interface InventoryDao {
     @Query("SELECT * FROM items WHERE locationId = :locationId ORDER BY sortOrder ASC, name ASC")
     fun getItemsByLocation(locationId: Int): Flow<List<Item>>
 
+    @Query("SELECT * FROM items")
+    suspend fun getAllItemsSync(): List<Item>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItem(item: Item)
 
@@ -38,6 +41,9 @@ interface InventoryDao {
     
     @Query("SELECT * FROM locations WHERE id = :id")
     fun getLocation(id: Int): Flow<Location?>
+
+    @Query("SELECT * FROM locations")
+    suspend fun getAllLocationsSync(): List<Location>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertLocation(location: Location)

@@ -5,6 +5,7 @@ import android.content.Context
 import com.brwnkid.homeinventory.data.InventoryDatabase
 import com.brwnkid.homeinventory.data.InventoryRepository
 import com.brwnkid.homeinventory.data.OfflineInventoryRepository
+import com.brwnkid.homeinventory.data.BackupRepository
 
 class InventoryApplication : Application() {
     lateinit var container: AppContainer
@@ -17,10 +18,15 @@ class InventoryApplication : Application() {
 
 interface AppContainer {
     val itemsRepository: InventoryRepository
+    val backupRepository: BackupRepository
 }
 
 class AppDataContainer(private val context: Context) : AppContainer {
     override val itemsRepository: InventoryRepository by lazy {
         OfflineInventoryRepository(InventoryDatabase.getDatabase(context).inventoryDao())
+    }
+    
+    override val backupRepository: BackupRepository by lazy {
+        BackupRepository(context, InventoryDatabase.getDatabase(context).inventoryDao())
     }
 }

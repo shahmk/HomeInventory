@@ -8,13 +8,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.brwnkid.homeinventory.ui.home.HomeScreen
 import com.brwnkid.homeinventory.ui.item.ItemEntryScreen
+import com.brwnkid.homeinventory.ui.settings.SettingsScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 
 enum class InventoryScreen {
     Home,
     ItemEntry,
-    ItemEdit
+    ItemEdit,
+    Settings
 }
 
 @Composable
@@ -32,7 +34,8 @@ fun InventoryNavHost(
                 navigateToItemEntry = { navController.navigate(InventoryScreen.ItemEntry.name) },
                 navigateToItemEdit = { itemId ->
                     navController.navigate("${InventoryScreen.ItemEdit.name}/$itemId")
-                }
+                },
+                navigateToSettings = { navController.navigate(InventoryScreen.Settings.name) }
             )
         }
         composable(route = InventoryScreen.ItemEntry.name) {
@@ -48,6 +51,11 @@ fun InventoryNavHost(
             ItemEntryScreen(
                 navigateBack = { navController.popBackStack() },
                 onNavigateUp = { navController.navigateUp() }
+            )
+        }
+        composable(route = InventoryScreen.Settings.name) {
+            SettingsScreen(
+                navigateBack = { navController.popBackStack() }
             )
         }
     }

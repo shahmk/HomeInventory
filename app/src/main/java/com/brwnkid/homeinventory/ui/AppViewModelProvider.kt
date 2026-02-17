@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.brwnkid.homeinventory.InventoryApplication
 import com.brwnkid.homeinventory.ui.home.HomeViewModel
 import com.brwnkid.homeinventory.ui.item.ItemEntryViewModel
+import com.brwnkid.homeinventory.ui.settings.SettingsViewModel
 
 import androidx.lifecycle.createSavedStateHandle
 
@@ -20,6 +21,9 @@ object AppViewModelProvider {
                 this.createSavedStateHandle(),
                 inventoryApplication().container.itemsRepository
             )
+        }
+        initializer {
+            SettingsViewModel(inventoryApplication().container.backupRepository)
         }
     }
 }
