@@ -56,6 +56,7 @@ dependencies {
     
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation("com.google.code.gson:gson:2.10.1")
     ksp(libs.androidx.room.compiler)
     implementation(libs.material)
 
@@ -65,6 +66,7 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.tooling)
+    implementation(libs.mlkit.text.recognition)
 }
 
 ksp {

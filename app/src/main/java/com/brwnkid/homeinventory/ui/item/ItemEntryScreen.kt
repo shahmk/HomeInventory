@@ -49,6 +49,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -59,6 +61,7 @@ import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.material3.IconButton
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.text.SimpleDateFormat
@@ -108,6 +111,9 @@ fun ItemEntryScreen(
                     navigateBack()
                 }
             },
+            onScanImage = viewModel::scanImage,
+            onNameSelected = viewModel::onNameSelected,
+            onNameSelectionDismissed = viewModel::onNameSelectionDismissed,
             modifier = Modifier
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
@@ -152,10 +158,38 @@ fun ItemEntryBody(
     onSaveClick: () -> Unit,
     onAddLocation: (String) -> Unit,
     onDelete: () -> Unit,
+    onScanImage: (Context, String) -> Unit,
+    onNameSelected: (String) -> Unit,
+    onNameSelectionDismissed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var showQuantityZeroConfirmation by remember { mutableStateOf(false) }
+
+    if (itemUiState.isNameSelectionOpen) {
+        AlertDialog(
+            onDismissRequest = { /* Do nothing or dismiss? viewModel handles dismiss */ },
+            title = { Text("Select Item Name") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    itemUiState.candidateNames.forEach { name ->
+                        TextButton(
+                            onClick = { onNameSelected(name) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(name, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onNameSelectionDismissed) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = modifier.padding(16.dp),
@@ -163,9 +197,11 @@ fun ItemEntryBody(
     ) {
         ItemInputForm(
             itemDetails = itemUiState.itemDetails,
+            isScanning = itemUiState.isScanning,
             locations = locations,
             onValueChange = onItemValueChange,
             onAddLocation = onAddLocation,
+            onScanImage = onScanImage,
             modifier = Modifier.fillMaxWidth()
         )
         Button(
@@ -243,9 +279,11 @@ fun ItemEntryBody(
 @Composable
 fun ItemInputForm(
     itemDetails: ItemDetails,
+    isScanning: Boolean,
     locations: List<Location>,
     onValueChange: (ItemDetails) -> Unit,
     onAddLocation: (String) -> Unit,
+    onScanImage: (Context, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -273,7 +311,8 @@ fun ItemInputForm(
                 if (uri != null) {
                     val savedPath = saveImageToInternalStorage(context, uri)
                     if (savedPath != null) {
-                        onValueChange(itemDetails.copy(imageUri = savedPath))
+                        val newList = itemDetails.imageUris + savedPath
+                        onValueChange(itemDetails.copy(imageUris = newList))
                     }
                 }
             }
@@ -285,7 +324,8 @@ fun ItemInputForm(
                 if (success && tempPhotoUri != null) {
                    val savedPath = saveImageToInternalStorage(context, tempPhotoUri!!)
                    if (savedPath != null) {
-                       onValueChange(itemDetails.copy(imageUri = savedPath))
+                       val newList = itemDetails.imageUris + savedPath
+                       onValueChange(itemDetails.copy(imageUris = newList))
                    }
                 }
             }
@@ -342,33 +382,87 @@ fun ItemInputForm(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .size(150.dp)
-                .clickable {
-                    showImageSourceDialog = true
-                },
-            contentAlignment = Alignment.Center
+        // Image List
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            if (itemDetails.imageUri != null) {
-                AsyncImage(
-                    model = File(itemDetails.imageUri),
-                    contentDescription = "Item Image",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
+            items(itemDetails.imageUris.size) { index ->
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.width(150.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AddPhotoAlternate,
-                        contentDescription = "Add Photo",
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Text(text = "Add Photo")
+                    Box(modifier = Modifier.size(150.dp)) {
+                        AsyncImage(
+                            model = File(itemDetails.imageUris[index]),
+                            contentDescription = "Item Image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        IconButton(
+                            onClick = {
+                                val newList = itemDetails.imageUris.toMutableList()
+                                newList.removeAt(index)
+                                onValueChange(itemDetails.copy(imageUris = newList))
+                            },
+                            modifier = Modifier.align(Alignment.TopEnd)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove Image",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    val context = LocalContext.current
+                    Button(
+                        onClick = {
+                            onScanImage(context, itemDetails.imageUris[index])
+                        },
+                        enabled = !isScanning,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        if (isScanning) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Text(" Scanning...", style = MaterialTheme.typography.labelSmall)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.FindInPage,
+                                contentDescription = null
+                            )
+                            Text(" Scan", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+
+            item {
+                Box(
+                    modifier = Modifier
+                        .size(150.dp)
+                        .clickable {
+                            showImageSourceDialog = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddPhotoAlternate,
+                            contentDescription = "Add Photo",
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Text(text = "Add Photo")
+                    }
                 }
             }
         }

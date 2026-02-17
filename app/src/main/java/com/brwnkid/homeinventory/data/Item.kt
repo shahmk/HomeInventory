@@ -22,6 +22,6 @@ data class Item(
     val description: String? = null,
     val quantity: Int = 1,
     val locationId: Int,
-    val imageUri: String? = null,
+    val imageUris: List<String> = emptyList(),
     val sortOrder: Int = 0
 )

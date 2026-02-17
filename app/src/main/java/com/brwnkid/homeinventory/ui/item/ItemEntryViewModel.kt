@@ -47,9 +47,20 @@ class ItemEntryViewModel(
         }
     }
 
-    fun updateUiState(itemDetails: ItemDetails) {
+    fun updateUiState(
+        itemDetails: ItemDetails, 
+        isScanning: Boolean = false, 
+        isNameSelectionOpen: Boolean = false,
+        candidateNames: List<String> = emptyList()
+    ) {
         itemUiState =
-            ItemUiState(itemDetails = itemDetails, isEntryValid = validateInput(itemDetails))
+            ItemUiState(
+                itemDetails = itemDetails, 
+                isEntryValid = validateInput(itemDetails), 
+                isScanning = isScanning,
+                isNameSelectionOpen = isNameSelectionOpen,
+                candidateNames = candidateNames
+            )
     }
 
     suspend fun saveItem() {
@@ -77,11 +88,92 @@ class ItemEntryViewModel(
     private fun validateInput(uiState: ItemDetails = itemUiState.itemDetails): Boolean {
         return uiState.name.isNotBlank() && uiState.locationId.isNotBlank()
     }
+
+    fun scanImage(context: android.content.Context, imageUri: String) {
+        if (itemUiState.isScanning) return
+        updateUiState(itemUiState.itemDetails, isScanning = true)
+        android.util.Log.d("ItemEntryViewModel", "Starting scan for URI: $imageUri")
+
+        try {
+            val uri = android.net.Uri.fromFile(java.io.File(imageUri))
+            val image = com.google.mlkit.vision.common.InputImage.fromFilePath(context, uri)
+            val recognizer = com.google.mlkit.vision.text.TextRecognition.getClient(com.google.mlkit.vision.text.latin.TextRecognizerOptions.DEFAULT_OPTIONS)
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    android.util.Log.d("ItemEntryViewModel", "Scan success. Text blocks: ${visionText.textBlocks.size}")
+                    processRecognizedText(visionText)
+                }
+                .addOnFailureListener { e ->
+                    android.util.Log.e("ItemEntryViewModel", "Scan failed", e)
+                    updateUiState(itemUiState.itemDetails, isScanning = false)
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("ItemEntryViewModel", "Error preparing image", e)
+            updateUiState(itemUiState.itemDetails, isScanning = false)
+        }
+    }
+
+    fun onNameSelected(name: String) {
+        val currentDescription = itemUiState.itemDetails.description
+        
+        // Filter out the selected name from the description text blocks
+        // We need to reconstruct the logic a bit or store the raw text blocks?
+        // Simpler approach: The 'name' passed here is one of the candidates. 
+        // We can just append all *other* candidates to the description?
+        // Or better: In processRecognizedText, we just stored strings. 
+        // If we want to move the *rest* to description, we should probably 
+        // just append all candidates *except* the selected one to the existing description.
+        
+        val newDescriptionBuilder = StringBuilder()
+        if (currentDescription.isNotBlank()) {
+            newDescriptionBuilder.append(currentDescription).append("\n")
+        }
+        
+        itemUiState.candidateNames.forEach { candidate ->
+            if (candidate != name) {
+                newDescriptionBuilder.append(candidate).append("\n")
+            }
+        }
+        
+        val finalDescription = newDescriptionBuilder.toString().trim()
+        
+        updateUiState(
+            itemUiState.itemDetails.copy(name = name, description = finalDescription),
+            isNameSelectionOpen = false
+        )
+    }
+
+    fun onNameSelectionDismissed() {
+        updateUiState(itemUiState.itemDetails, isNameSelectionOpen = false)
+    }
+
+    private fun processRecognizedText(visionText: com.google.mlkit.vision.text.Text) {
+        if (visionText.textBlocks.isEmpty()) {
+            android.util.Log.d("ItemEntryViewModel", "No text found in image")
+            updateUiState(itemUiState.itemDetails, isScanning = false)
+            return
+        }
+
+        // Collect all text blocks as candidates
+        val candidates = visionText.textBlocks.map { it.text }
+        android.util.Log.d("ItemEntryViewModel", "Candidates found: ${candidates.size}")
+
+        // Open selection dialog with candidates
+        updateUiState(
+            itemUiState.itemDetails, 
+            isScanning = false, 
+            candidateNames = candidates, 
+            isNameSelectionOpen = true
+        )
+    }
 }
 
 data class ItemUiState(
     val itemDetails: ItemDetails = ItemDetails(),
-    val isEntryValid: Boolean = false
+    val isEntryValid: Boolean = false,
+    val isScanning: Boolean = false,
+    val isNameSelectionOpen: Boolean = false,
+    val candidateNames: List<String> = emptyList()
 )
 
 data class ItemDetails(
@@ -90,7 +182,7 @@ data class ItemDetails(
     val quantity: String = "1",
     val locationId: String = "",
     val description: String = "",
-    val imageUri: String? = null
+    val imageUris: List<String> = emptyList()
 )
 
 fun ItemDetails.toItem(): Item = Item(
@@ -99,7 +191,7 @@ fun ItemDetails.toItem(): Item = Item(
     quantity = quantity.toIntOrNull() ?: 0,
     locationId = locationId.toIntOrNull() ?: 0,
     description = description,
-    imageUri = imageUri
+    imageUris = imageUris
 )
 
 fun Item.toItemDetails(): ItemDetails = ItemDetails(
@@ -108,5 +200,5 @@ fun Item.toItemDetails(): ItemDetails = ItemDetails(
     quantity = quantity.toString(),
     locationId = locationId.toString(),
     description = description ?: "",
-    imageUri = imageUri
+    imageUris = imageUris
 )

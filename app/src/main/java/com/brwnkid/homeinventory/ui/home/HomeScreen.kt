@@ -155,9 +155,11 @@ fun HomeScreen(
                     .padding(16.dp)
             )
             HomeBody(
-                homeItems = homeUiState.homeItems,
+                homeItems = homeUiState
+                    .homeItems,
                 onIncrement = viewModel::incrementItemQuantity,
                 onDecrement = viewModel::decrementItemQuantity,
+                onDelete = viewModel::deleteItem,
                 onItemClick = { navigateToItemEdit(it.id) },
                 onImageClick = { uri -> selectedImageUri = uri },
                 modifier = Modifier.weight(1f)
@@ -226,6 +228,7 @@ private fun HomeBody(
     homeItems: List<HomeUiItem>,
     onIncrement: (Item) -> Unit,
     onDecrement: (Item) -> Unit,
+    onDelete: (Item) -> Unit,
     onItemClick: (Item) -> Unit,
     onImageClick: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -246,6 +249,7 @@ private fun HomeBody(
                 homeItems = homeItems,
                 onIncrement = onIncrement,
                 onDecrement = onDecrement,
+                onDelete = onDelete,
                 onItemClick = onItemClick,
                 onImageClick = onImageClick,
                 modifier = Modifier.padding(horizontal = 8.dp)
@@ -259,6 +263,7 @@ private fun InventoryList(
     homeItems: List<HomeUiItem>,
     onIncrement: (Item) -> Unit,
     onDecrement: (Item) -> Unit,
+    onDelete: (Item) -> Unit,
     onItemClick: (Item) -> Unit,
     onImageClick: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -285,6 +290,7 @@ private fun InventoryList(
                        item = uiItem.item,
                        onIncrement = onIncrement,
                        onDecrement = onDecrement,
+                       onDelete = onDelete,
                        onItemClick = onItemClick,
                        onImageClick = onImageClick,
                        modifier = Modifier.fillMaxWidth()
@@ -348,95 +354,140 @@ private fun InventoryItem(
     onDecrement: (Item) -> Unit,
     onItemClick: (Item) -> Unit,
     onImageClick: (String) -> Unit,
+    onDelete: (Item) -> Unit,
     modifier: Modifier = Modifier,
     elevation: androidx.compose.ui.unit.Dp = 2.dp
 ) {
+    var showDeletePrompt by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier
             .padding(vertical = 4.dp)
             .clickable { onItemClick(item) },
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Left: Image
-            if (item.imageUri != null) {
-                AsyncImage(
-                    model = File(item.imageUri),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clickable { onImageClick(item.imageUri) },
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                 // Placeholder if no image, to keep layout consistent or could be hidden
-                 Box(
-                     modifier = Modifier
-                         .size(100.dp)
-                         .clickable { /* No-op or open filler */ },
-                     contentAlignment = Alignment.Center
-                 ) {
-                     Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(48.dp))
-                 }
-            }
-
-            // Middle: Details
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        if (showDeletePrompt) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                     modifier = Modifier.fillMaxWidth()
+                    text = "Remove Item?",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
                 )
-                
-                if (item.description?.isNotBlank() == true) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.TextButton(
+                        onClick = { 
+                             showDeletePrompt = false
+                             if (item.quantity == 1) {
+                                 onDecrement(item) // Should result in 0
+                             }
+                        }
+                    ) {
+                        Text("No")
+                    }
+                    androidx.compose.material3.Button(
+                        onClick = { 
+                            showDeletePrompt = false
+                            onDelete(item)
+                        }
+                    ) {
+                        Text("Yes")
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Left: Image
+                if (item.imageUris.isNotEmpty()) {
+                    AsyncImage(
+                        model = File(item.imageUris.first()),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clickable { onImageClick(item.imageUris.first()) },
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                     // Placeholder if no image, to keep layout consistent or could be hidden
+                     Box(
+                         modifier = Modifier
+                             .size(100.dp)
+                             .clickable { /* No-op or open filler */ },
+                         contentAlignment = Alignment.Center
+                     ) {
+                         Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(48.dp))
+                     }
+                }
+    
+                // Middle: Details
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(
-                        text = item.description,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = item.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                         modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    if (item.description?.isNotBlank() == true) {
+                        Text(
+                            text = item.description,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    
+                    Text(
+                        text = "Quantity: ${item.quantity}",
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
-                
-                Text(
-                    text = "Quantity: ${item.quantity}",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            // Right: Buttons
-            Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                androidx.compose.material3.OutlinedButton(
-                    onClick = { onIncrement(item) },
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier.size(40.dp)
+    
+                // Right: Buttons
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Increase quantity"
-                    )
-                }
-                
-                androidx.compose.material3.OutlinedButton(
-                    onClick = { onDecrement(item) },
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Remove,
-                        contentDescription = "Decrease quantity"
-                    )
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { onIncrement(item) },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Increase quantity"
+                        )
+                    }
+                    
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { 
+                            if (item.quantity <= 1) {
+                                showDeletePrompt = true
+                            } else {
+                                onDecrement(item)
+                            }
+                        },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Remove,
+                            contentDescription = "Decrease quantity"
+                        )
+                    }
                 }
             }
         }

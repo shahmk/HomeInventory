@@ -95,4 +95,10 @@ class HomeViewModel(private val itemsRepository: InventoryRepository) : ViewMode
             itemsRepository.insertLocation(com.brwnkid.homeinventory.data.Location(name = name))
         }
     }
+
+    fun deleteItem(item: Item) {
+        viewModelScope.launch {
+            itemsRepository.deleteItem(item)
+        }
+    }
 }
