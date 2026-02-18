@@ -1,6 +1,14 @@
 package com.brwnkid.homeinventory.ui.home
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -98,7 +106,18 @@ fun HomeScreen(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (showFabMenu) {
+                    // Sub-FAB: Item — slides up with a slight delay
+                    AnimatedVisibility(
+                        visible = showFabMenu,
+                        enter = slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = tween(durationMillis = 200, delayMillis = 60)
+                        ) + fadeIn(animationSpec = tween(durationMillis = 200, delayMillis = 60)),
+                        exit = slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(durationMillis = 150)
+                        ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                    ) {
                         ExtendedFloatingActionButton(
                             text = { Text("Item") },
                             icon = { Icon(Icons.Default.Inventory, contentDescription = null) },
@@ -110,7 +129,20 @@ fun HomeScreen(
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                         )
+                    }
 
+                    // Sub-FAB: Location — slides up immediately
+                    AnimatedVisibility(
+                        visible = showFabMenu,
+                        enter = slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = tween(durationMillis = 200, delayMillis = 0)
+                        ) + fadeIn(animationSpec = tween(durationMillis = 200, delayMillis = 0)),
+                        exit = slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(durationMillis = 150, delayMillis = 40)
+                        ) + fadeOut(animationSpec = tween(durationMillis = 150, delayMillis = 40))
+                    ) {
                         ExtendedFloatingActionButton(
                             text = { Text("Location") },
                             icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
@@ -124,15 +156,25 @@ fun HomeScreen(
                         )
                     }
 
+                    // Main FAB with animated icon swap
                     FloatingActionButton(
                         onClick = { showFabMenu = !showFabMenu },
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ) {
-                        Icon(
-                            imageVector = if (showFabMenu) Icons.Default.Close else Icons.Default.Add,
-                            contentDescription = if (showFabMenu) "Close" else "Add"
-                        )
+                        AnimatedContent(
+                            targetState = showFabMenu,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(200)) togetherWith
+                                    fadeOut(animationSpec = tween(200))
+                            },
+                            label = "FAB icon"
+                        ) { isOpen ->
+                            Icon(
+                                imageVector = if (isOpen) Icons.Default.Close else Icons.Default.Add,
+                                contentDescription = if (isOpen) "Close" else "Add"
+                            )
+                        }
                     }
                 }
 
@@ -172,12 +214,19 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f)
             )
         }
-        
-        if (selectedImageUri != null) {
-            ImagePreviewDialog(
-                imageUri = selectedImageUri!!,
-                onDismiss = { selectedImageUri = null }
-            )
+
+        // Animated image preview dialog — fades in/out
+        AnimatedVisibility(
+            visible = selectedImageUri != null,
+            enter = fadeIn(animationSpec = tween(250)),
+            exit = fadeOut(animationSpec = tween(200))
+        ) {
+            selectedImageUri?.let { uri ->
+                ImagePreviewDialog(
+                    imageUri = uri,
+                    onDismiss = { selectedImageUri = null }
+                )
+            }
         }
     }
 }
@@ -373,127 +422,155 @@ private fun InventoryItem(
             .clickable { onItemClick(item) },
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
-        if (showDeletePrompt) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Remove Item?",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    androidx.compose.material3.TextButton(
-                        onClick = { 
-                             showDeletePrompt = false
-                             if (item.quantity == 1) {
-                                 onDecrement(item) // Should result in 0
-                             }
-                        }
-                    ) {
-                        Text("No")
-                    }
-                    androidx.compose.material3.Button(
-                        onClick = { 
-                            showDeletePrompt = false
-                            onDelete(item)
-                        }
-                    ) {
-                        Text("Yes")
-                    }
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Left: Image
-                if (item.imageUris.isNotEmpty()) {
-                    AsyncImage(
-                        model = File(item.imageUris.first()),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clickable { onImageClick(item.imageUris.first()) },
-                        contentScale = ContentScale.Crop
-                    )
+        AnimatedContent(
+            targetState = showDeletePrompt,
+            transitionSpec = {
+                if (targetState) {
+                    // Showing delete prompt: slide in from end, slide out to start
+                    (slideInVertically(
+                        initialOffsetY = { -it / 3 },
+                        animationSpec = tween(250)
+                    ) + fadeIn(animationSpec = tween(250))) togetherWith
+                        (slideOutVertically(
+                            targetOffsetY = { it / 3 },
+                            animationSpec = tween(200)
+                        ) + fadeOut(animationSpec = tween(200)))
                 } else {
-                     // Placeholder if no image, to keep layout consistent or could be hidden
-                     Box(
-                         modifier = Modifier
-                             .size(100.dp)
-                             .clickable { /* No-op or open filler */ },
-                         contentAlignment = Alignment.Center
-                     ) {
-                         Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(48.dp))
-                     }
+                    // Returning to normal: reverse
+                    (slideInVertically(
+                        initialOffsetY = { it / 3 },
+                        animationSpec = tween(250)
+                    ) + fadeIn(animationSpec = tween(250))) togetherWith
+                        (slideOutVertically(
+                            targetOffsetY = { -it / 3 },
+                            animationSpec = tween(200)
+                        ) + fadeOut(animationSpec = tween(200)))
                 }
-    
-                // Middle: Details
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            },
+            label = "delete prompt"
+        ) { isShowingDeletePrompt ->
+            if (isShowingDeletePrompt) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = item.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                         modifier = Modifier.fillMaxWidth()
+                        text = "Remove Item?",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
                     )
-                    
-                    if (item.description?.isNotBlank() == true) {
-                        Text(
-                            text = item.description,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    
-                    Text(
-                        text = "Quantity: ${item.quantity}",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-    
-                // Right: Buttons
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = { onIncrement(item) },
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(0.dp),
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Increase quantity"
-                        )
-                    }
-                    
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = { 
-                            if (item.quantity <= 1) {
-                                showDeletePrompt = true
-                            } else {
-                                onDecrement(item)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        androidx.compose.material3.TextButton(
+                            onClick = { 
+                                 showDeletePrompt = false
+                                 if (item.quantity == 1) {
+                                     onDecrement(item) // Should result in 0
+                                 }
                             }
-                        },
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(0.dp),
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Remove,
-                            contentDescription = "Decrease quantity"
+                        ) {
+                            Text("No")
+                        }
+                        androidx.compose.material3.Button(
+                            onClick = { 
+                                showDeletePrompt = false
+                                onDelete(item)
+                            }
+                        ) {
+                            Text("Yes")
+                        }
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Left: Image
+                    if (item.imageUris.isNotEmpty()) {
+                        AsyncImage(
+                            model = File(item.imageUris.first()),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clickable { onImageClick(item.imageUris.first()) },
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                         // Placeholder if no image, to keep layout consistent or could be hidden
+                         Box(
+                             modifier = Modifier
+                                 .size(100.dp)
+                                 .clickable { /* No-op or open filler */ },
+                             contentAlignment = Alignment.Center
+                         ) {
+                             Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(48.dp))
+                         }
+                    }
+        
+                    // Middle: Details
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                             modifier = Modifier.fillMaxWidth()
+                        )
+                        
+                        if (item.description?.isNotBlank() == true) {
+                            Text(
+                                text = item.description,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        
+                        Text(
+                            text = "Quantity: ${item.quantity}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+        
+                    // Right: Buttons
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { onIncrement(item) },
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Increase quantity"
+                            )
+                        }
+                        
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { 
+                                if (item.quantity <= 1) {
+                                    showDeletePrompt = true
+                                } else {
+                                    onDecrement(item)
+                                }
+                            },
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Remove,
+                                contentDescription = "Decrease quantity"
+                            )
+                        }
                     }
                 }
             }

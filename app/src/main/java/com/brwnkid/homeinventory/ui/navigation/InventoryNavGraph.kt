@@ -1,5 +1,9 @@
 package com.brwnkid.homeinventory.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -19,6 +23,8 @@ enum class InventoryScreen {
     Settings
 }
 
+private const val TRANSITION_DURATION = 350
+
 @Composable
 fun InventoryNavHost(
     navController: NavHostController = rememberNavController(),
@@ -27,7 +33,31 @@ fun InventoryNavHost(
     NavHost(
         navController = navController,
         startDestination = InventoryScreen.Home.name,
-        modifier = modifier
+        modifier = modifier,
+        enterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeIn(animationSpec = tween(TRANSITION_DURATION))
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeOut(animationSpec = tween(TRANSITION_DURATION))
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeIn(animationSpec = tween(TRANSITION_DURATION))
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeOut(animationSpec = tween(TRANSITION_DURATION))
+        }
     ) {
         composable(route = InventoryScreen.Home.name) {
             HomeScreen(
