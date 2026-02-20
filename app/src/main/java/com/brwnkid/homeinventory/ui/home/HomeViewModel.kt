@@ -22,6 +22,13 @@ class HomeViewModel(private val itemsRepository: InventoryRepository) : ViewMode
     private val _searchQuery = kotlinx.coroutines.flow.MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _isCardView = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isCardView: StateFlow<Boolean> = _isCardView.asStateFlow()
+
+    fun toggleViewMode() {
+        _isCardView.value = !_isCardView.value
+    }
+
     val homeUiState: StateFlow<HomeUiState> =
         kotlinx.coroutines.flow.combine(
             itemsRepository.getAllItemsStream(),

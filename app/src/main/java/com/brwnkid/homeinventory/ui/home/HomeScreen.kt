@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -32,6 +33,13 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -80,6 +88,7 @@ fun HomeScreen(
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val homeUiState by viewModel.homeUiState.collectAsState()
+    val isCardView by viewModel.isCardView.collectAsState()
     var selectedImageUri by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
@@ -91,6 +100,12 @@ fun HomeScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 actions = {
+                    IconButton(onClick = viewModel::toggleViewMode) {
+                        Icon(
+                            imageVector = if (isCardView) Icons.AutoMirrored.Filled.List else Icons.Filled.GridView,
+                            contentDescription = if (isCardView) "List View" else "Card View"
+                        )
+                    }
                     IconButton(onClick = navigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
@@ -204,8 +219,8 @@ fun HomeScreen(
                     .padding(16.dp)
             )
             HomeBody(
-                homeItems = homeUiState
-                    .homeItems,
+                homeItems = homeUiState.homeItems,
+                isCardView = isCardView,
                 onIncrement = viewModel::incrementItemQuantity,
                 onDecrement = viewModel::decrementItemQuantity,
                 onDelete = viewModel::deleteItem,
@@ -282,6 +297,7 @@ fun InventorySearchBar(
 @Composable
 private fun HomeBody(
     homeItems: List<HomeUiItem>,
+    isCardView: Boolean,
     onIncrement: (Item) -> Unit,
     onDecrement: (Item) -> Unit,
     onDelete: (Item) -> Unit,
@@ -301,15 +317,27 @@ private fun HomeBody(
                 modifier = Modifier.padding(16.dp)
             )
         } else {
-            InventoryList(
-                homeItems = homeItems,
-                onIncrement = onIncrement,
-                onDecrement = onDecrement,
-                onDelete = onDelete,
-                onItemClick = onItemClick,
-                onImageClick = onImageClick,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
+            if (isCardView) {
+                InventoryGrid(
+                    homeItems = homeItems,
+                    onIncrement = onIncrement,
+                    onDecrement = onDecrement,
+                    onDelete = onDelete,
+                    onItemClick = onItemClick,
+                    onImageClick = onImageClick,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            } else {
+                InventoryList(
+                    homeItems = homeItems,
+                    onIncrement = onIncrement,
+                    onDecrement = onDecrement,
+                    onDelete = onDelete,
+                    onItemClick = onItemClick,
+                    onImageClick = onImageClick,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
         }
     }
 }
@@ -571,6 +599,199 @@ private fun InventoryItem(
                                 contentDescription = "Decrease quantity"
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InventoryGrid(
+    homeItems: List<HomeUiItem>,
+    onIncrement: (Item) -> Unit,
+    onDecrement: (Item) -> Unit,
+    onDelete: (Item) -> Unit,
+    onItemClick: (Item) -> Unit,
+    onImageClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val lazyGridState = rememberLazyGridState()
+    var itemToDelete by remember { mutableStateOf<Item?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog && itemToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showDeleteDialog = false 
+                itemToDelete = null
+            },
+            title = { Text("Remove Item?") },
+            text = { Text("Are you sure you want to remove ${itemToDelete?.name}?") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        itemToDelete?.let { onDelete(it) }
+                        showDeleteDialog = false
+                        itemToDelete = null
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { 
+                        showDeleteDialog = false 
+                        itemToDelete = null 
+                    }
+                ) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = modifier,
+        state = lazyGridState,
+        contentPadding = PaddingValues(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(
+            items = homeItems,
+            span = { item ->
+                when (item) {
+                    is HomeUiItem.Header -> GridItemSpan(2)
+                    is HomeUiItem.ItemEntry -> GridItemSpan(1)
+                }
+            },
+            key = {
+                when (it) {
+                    is HomeUiItem.Header -> "header_${it.name}"
+                    is HomeUiItem.ItemEntry -> "item_${it.item.id}"
+                }
+            }
+        ) { uiItem ->
+             when (uiItem) {
+                is HomeUiItem.Header -> {
+                    LocationHeader(name = uiItem.name)
+                }
+                is HomeUiItem.ItemEntry -> {
+                    InventoryCard(
+                        item = uiItem.item,
+                        onIncrement = onIncrement,
+                        onDecrement = { item ->
+                             if (item.quantity <= 1) {
+                                  itemToDelete = item
+                                  showDeleteDialog = true
+                             } else {
+                                  onDecrement(item)
+                             }
+                        },
+                        onItemClick = onItemClick,
+                        onImageClick = onImageClick,
+                        modifier = Modifier
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InventoryCard(
+    item: Item,
+    onIncrement: (Item) -> Unit,
+    onDecrement: (Item) -> Unit,
+    onItemClick: (Item) -> Unit,
+    onImageClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .clickable { onItemClick(item) },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.2f)
+                    .clickable { 
+                        if (item.imageUris.isNotEmpty()) {
+                            onImageClick(item.imageUris.first())
+                        }
+                    }
+            ) {
+                if (item.imageUris.isNotEmpty()) {
+                    AsyncImage(
+                        model = File(item.imageUris.first()),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Inventory,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = item.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Qty: ${item.quantity}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                         IconButton(
+                             onClick = { onDecrement(item) },
+                             modifier = Modifier.size(32.dp)
+                         ) {
+                             Icon(
+                                 Icons.Default.Remove, 
+                                 contentDescription = "Decrease",
+                                 modifier = Modifier.size(16.dp)
+                             )
+                         }
+                         IconButton(
+                             onClick = { onIncrement(item) },
+                             modifier = Modifier.size(32.dp)
+                         ) {
+                             Icon(
+                                 Icons.Default.Add, 
+                                 contentDescription = "Increase",
+                                 modifier = Modifier.size(16.dp)
+                             )
+                         }
                     }
                 }
             }
