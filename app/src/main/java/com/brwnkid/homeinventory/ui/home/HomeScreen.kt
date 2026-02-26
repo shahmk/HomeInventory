@@ -91,6 +91,56 @@ fun HomeScreen(
     val isCardView by viewModel.isCardView.collectAsState()
     var selectedImageUri by remember { mutableStateOf<String?>(null) }
 
+    HomeContent(
+        searchQuery = searchQuery,
+        homeUiState = homeUiState,
+        isCardView = isCardView,
+        onSearchQueryChange = viewModel::onSearchQueryChange,
+        onToggleViewMode = viewModel::toggleViewMode,
+        onIncrement = viewModel::incrementItemQuantity,
+        onDecrement = viewModel::decrementItemQuantity,
+        onDelete = viewModel::deleteItem,
+        onItemClick = { navigateToItemEdit(it.id) },
+        onLocationConfirm = viewModel::saveLocation,
+        navigateToItemEntry = navigateToItemEntry,
+        navigateToSettings = navigateToSettings,
+        onImageClick = { uri -> selectedImageUri = uri },
+        modifier = modifier
+    )
+
+    // Animated image preview dialog — fades in/out
+    AnimatedVisibility(
+        visible = selectedImageUri != null,
+        enter = fadeIn(animationSpec = tween(250)),
+        exit = fadeOut(animationSpec = tween(200))
+    ) {
+        selectedImageUri?.let { uri ->
+            ImagePreviewDialog(
+                imageUri = uri,
+                onDismiss = { selectedImageUri = null }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeContent(
+    searchQuery: String,
+    homeUiState: HomeUiState,
+    isCardView: Boolean,
+    onSearchQueryChange: (String) -> Unit,
+    onToggleViewMode: () -> Unit,
+    onIncrement: (Item) -> Unit,
+    onDecrement: (Item) -> Unit,
+    onDelete: (Item) -> Unit,
+    onItemClick: (Item) -> Unit,
+    onLocationConfirm: (String) -> Unit,
+    navigateToItemEntry: () -> Unit,
+    navigateToSettings: () -> Unit,
+    onImageClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -100,7 +150,7 @@ fun HomeScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 actions = {
-                    IconButton(onClick = viewModel::toggleViewMode) {
+                    IconButton(onClick = onToggleViewMode) {
                         Icon(
                             imageVector = if (isCardView) Icons.AutoMirrored.Filled.List else Icons.Filled.GridView,
                             contentDescription = if (isCardView) "List View" else "Card View"
@@ -197,7 +247,7 @@ fun HomeScreen(
                     AddLocationDialog(
                         onDismiss = { showAddLocationDialog = false },
                         onConfirm = { name ->
-                            viewModel.saveLocation(name)
+                            onLocationConfirm(name)
                             showAddLocationDialog = false
                         }
                     )
@@ -213,7 +263,7 @@ fun HomeScreen(
         ) {
             InventorySearchBar(
                 query = searchQuery,
-                onQueryChange = viewModel::onSearchQueryChange,
+                onQueryChange = onSearchQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -221,27 +271,13 @@ fun HomeScreen(
             HomeBody(
                 homeItems = homeUiState.homeItems,
                 isCardView = isCardView,
-                onIncrement = viewModel::incrementItemQuantity,
-                onDecrement = viewModel::decrementItemQuantity,
-                onDelete = viewModel::deleteItem,
-                onItemClick = { navigateToItemEdit(it.id) },
-                onImageClick = { uri -> selectedImageUri = uri },
+                onIncrement = onIncrement,
+                onDecrement = onDecrement,
+                onDelete = onDelete,
+                onItemClick = onItemClick,
+                onImageClick = onImageClick,
                 modifier = Modifier.weight(1f)
             )
-        }
-
-        // Animated image preview dialog — fades in/out
-        AnimatedVisibility(
-            visible = selectedImageUri != null,
-            enter = fadeIn(animationSpec = tween(250)),
-            exit = fadeOut(animationSpec = tween(200))
-        ) {
-            selectedImageUri?.let { uri ->
-                ImagePreviewDialog(
-                    imageUri = uri,
-                    onDismiss = { selectedImageUri = null }
-                )
-            }
         }
     }
 }
