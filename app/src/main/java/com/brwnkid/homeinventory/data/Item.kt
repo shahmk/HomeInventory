@@ -26,6 +26,7 @@ data class Item(
     val description: String? = null,
     val quantity: Int = 1,
     val locationId: String,
+    val barcode: String? = null,
     val imageUris: List<String> = emptyList(),
     val sortOrder: Int = 0,
     val lastModified: Long = System.currentTimeMillis(),

@@ -14,6 +14,13 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 import androidx.lifecycle.SavedStateHandle
 
@@ -170,6 +177,61 @@ class ItemEntryViewModel(
             isNameSelectionOpen = true
         )
     }
+
+    fun scanBarcode(context: android.content.Context) {
+        val options = GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
+            .enableAutoZoom()
+            .build()
+            
+        val scanner = GmsBarcodeScanning.getClient(context, options)
+        
+        scanner.startScan()
+            .addOnSuccessListener { barcode ->
+                val rawValue = barcode.rawValue
+                if (rawValue != null) {
+                    android.util.Log.d("ItemEntryViewModel", "Barcode scanned: $rawValue")
+                    updateUiState(itemUiState.itemDetails.copy(barcode = rawValue))
+                    
+                    // Attempt to fetch product name automatically
+                    viewModelScope.launch {
+                        val productName = fetchProductDetails(rawValue)
+                        if (productName != null && itemUiState.itemDetails.name.isBlank()) {
+                            // Only auto-fill name if it is currently blank
+                            updateUiState(itemUiState.itemDetails.copy(name = productName))
+                        }
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("ItemEntryViewModel", "Barcode scan failed", e)
+            }
+            .addOnCanceledListener {
+                android.util.Log.d("ItemEntryViewModel", "Barcode scan canceled")
+            }
+    }
+
+    private suspend fun fetchProductDetails(barcode: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("https://world.openfoodfacts.org/api/v2/product/$barcode.json")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("User-Agent", "HomeInventoryApp - Android - Version 1.0")
+            
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                val jsonObject = JSONObject(response)
+                
+                if (jsonObject.optInt("status", 0) == 1) {
+                    val product = jsonObject.optJSONObject("product")
+                    return@withContext product?.optString("product_name")?.takeIf { it.isNotBlank() }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ItemEntryViewModel", "Failed to fetch product details", e)
+        }
+        return@withContext null
+    }
 }
 
 data class ItemUiState(
@@ -185,6 +247,7 @@ data class ItemDetails(
     val name: String = "",
     val quantity: String = "1",
     val locationId: String = "",
+    val barcode: String = "",
     val description: String = "",
     val imageUris: List<String> = emptyList()
 )
@@ -194,7 +257,8 @@ fun ItemDetails.toItem(): Item = Item(
     name = name,
     quantity = quantity.toIntOrNull() ?: 0,
     locationId = locationId,
-    description = description,
+    barcode = barcode.ifBlank { null },
+    description = description.ifBlank { null },
     imageUris = imageUris
 )
 
@@ -203,6 +267,7 @@ fun Item.toItemDetails(): ItemDetails = ItemDetails(
     name = name,
     quantity = quantity.toString(),
     locationId = locationId.toString(),
+    barcode = barcode ?: "",
     description = description ?: "",
     imageUris = imageUris
 )

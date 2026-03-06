@@ -90,6 +90,9 @@ dependencies {
     implementation(libs.mlkit.text.recognition)
     implementation(libs.kotlinx.serialization.json)
     
+    // Barcode Scanner
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    
     // Google Drive and Sign-In
     implementation(libs.play.services.auth)
     implementation(libs.google.api.client.android)

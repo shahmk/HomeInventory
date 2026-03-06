@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.ui.Alignment
@@ -112,6 +113,7 @@ fun ItemEntryScreen(
                 }
             },
             onScanImage = viewModel::scanImage,
+            onScanBarcode = { context -> viewModel.scanBarcode(context) },
             onNameSelected = viewModel::onNameSelected,
             onNameSelectionDismissed = viewModel::onNameSelectionDismissed,
             modifier = Modifier
@@ -159,6 +161,7 @@ fun ItemEntryBody(
     onAddLocation: (String) -> Unit,
     onDelete: () -> Unit,
     onScanImage: (Context, String) -> Unit,
+    onScanBarcode: (Context) -> Unit,
     onNameSelected: (String) -> Unit,
     onNameSelectionDismissed: () -> Unit,
     modifier: Modifier = Modifier
@@ -202,6 +205,7 @@ fun ItemEntryBody(
             onValueChange = onItemValueChange,
             onAddLocation = onAddLocation,
             onScanImage = onScanImage,
+            onScanBarcode = onScanBarcode,
             modifier = Modifier.fillMaxWidth()
         )
         Button(
@@ -284,6 +288,7 @@ fun ItemInputForm(
     onValueChange: (ItemDetails) -> Unit,
     onAddLocation: (String) -> Unit,
     onScanImage: (Context, String) -> Unit,
+    onScanBarcode: (Context) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -473,6 +478,21 @@ fun ItemInputForm(
             label = { Text("Item Name") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
+        )
+        OutlinedTextField(
+            value = itemDetails.barcode,
+            onValueChange = { onValueChange(itemDetails.copy(barcode = it)) },
+            label = { Text("Barcode (Optional)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            trailingIcon = {
+                IconButton(onClick = { onScanBarcode(context) }) {
+                    Icon(
+                        imageVector = Icons.Default.QrCodeScanner,
+                        contentDescription = "Scan Barcode"
+                    )
+                }
+            }
         )
         OutlinedTextField(
             value = itemDetails.quantity,
