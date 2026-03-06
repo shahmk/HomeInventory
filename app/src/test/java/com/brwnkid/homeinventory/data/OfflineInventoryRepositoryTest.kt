@@ -13,9 +13,9 @@ class FakeInventoryDao : InventoryDao {
     private val itemsFlow = MutableStateFlow<List<Item>>(emptyList())
     private val locationsFlow = MutableStateFlow<List<Location>>(emptyList())
 
-    override fun getAllItems(): Flow<List<Item>> = itemsFlow
-    override fun getItem(id: Int): Flow<Item?> = itemsFlow.map { it.find { item -> item.id == id } }
-    override fun getItemsByLocation(locationId: Int): Flow<List<Item>> = itemsFlow.map { it.filter { item -> item.locationId == locationId } }
+    override fun getAllItems(): Flow<List<Item>> = itemsFlow.map { it.filter { item -> !item.isDeleted } }
+    override fun getItem(id: String): Flow<Item?> = itemsFlow.map { it.find { item -> item.id == id && !item.isDeleted } }
+    override fun getItemsByLocation(locationId: String): Flow<List<Item>> = itemsFlow.map { it.filter { item -> item.locationId == locationId && !item.isDeleted } }
     override suspend fun getAllItemsSync(): List<Item> = itemsFlow.value
 
     override suspend fun insertItem(item: Item) {
@@ -35,8 +35,8 @@ class FakeInventoryDao : InventoryDao {
         itemsFlow.value = itemsFlow.value.filter { it.id != item.id }
     }
 
-    override fun getAllLocations(): Flow<List<Location>> = locationsFlow
-    override fun getLocation(id: Int): Flow<Location?> = locationsFlow.map { it.find { loc -> loc.id == id } }
+    override fun getAllLocations(): Flow<List<Location>> = locationsFlow.map { it.filter { loc -> !loc.isDeleted } }
+    override fun getLocation(id: String): Flow<Location?> = locationsFlow.map { it.find { loc -> loc.id == id && !loc.isDeleted } }
     override suspend fun getAllLocationsSync(): List<Location> = locationsFlow.value
 
     override suspend fun insertLocation(location: Location) {
@@ -49,6 +49,22 @@ class FakeInventoryDao : InventoryDao {
 
     override suspend fun deleteLocation(location: Location) {
         locationsFlow.value = locationsFlow.value.filter { it.id != location.id }
+    }
+
+    override suspend fun upsertItem(item: Item) {
+        if (itemsFlow.value.any { it.id == item.id }) {
+            updateItem(item)
+        } else {
+            insertItem(item)
+        }
+    }
+
+    override suspend fun upsertLocation(location: Location) {
+        if (locationsFlow.value.any { it.id == location.id }) {
+            updateLocation(location)
+        } else {
+            insertLocation(location)
+        }
     }
 }
 
@@ -64,21 +80,21 @@ class OfflineInventoryRepositoryTest {
 
     @Test
     fun repositoryInsertAndGetItem() = runTest {
-        val item = Item(id = 1, name = "Milk", quantity = 2, locationId = 1)
+        val item = Item(id = "1", name = "Milk", quantity = 2, locationId = "1")
         repository.insertItem(item)
         
-        repository.getItemStream(1).test {
+        repository.getItemStream("1").test {
             assertEquals(item, awaitItem())
         }
     }
 
     @Test
     fun repositoryDeleteAndGetItem() = runTest {
-        val item = Item(id = 1, name = "Milk", quantity = 2, locationId = 1)
+        val item = Item(id = "1", name = "Milk", quantity = 2, locationId = "1")
         repository.insertItem(item)
         repository.deleteItem(item)
         
-        repository.getItemStream(1).test {
+        repository.getItemStream("1").test {
             assertEquals(null, awaitItem())
         }
     }

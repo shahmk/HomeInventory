@@ -21,11 +21,12 @@ class HomeViewModelTest {
 
     private lateinit var viewModel: HomeViewModel
     private lateinit var repository: FakeInventoryRepository
+    private val syncManager = org.mockito.Mockito.mock(com.brwnkid.homeinventory.data.sync.SyncManager::class.java)
 
     @Before
     fun setup() {
         repository = FakeInventoryRepository()
-        viewModel = HomeViewModel(repository)
+        viewModel = HomeViewModel(repository, syncManager)
     }
 
     @Test
@@ -38,9 +39,9 @@ class HomeViewModelTest {
 
     @Test
     fun homeViewModel_loadItems_groupsByLocation() = runTest {
-        val location = Location(id = 1, name = "Kitchen")
-        val item1 = Item(id = 1, name = "Milk", locationId = 1)
-        val item2 = Item(id = 2, name = "Eggs", locationId = 1)
+        val location = Location(id = "1", name = "Kitchen")
+        val item1 = Item(id = "1", name = "Milk", locationId = "1")
+        val item2 = Item(id = "2", name = "Eggs", locationId = "1")
         
         repository.insertLocation(location)
         repository.insertItem(item1)
@@ -61,9 +62,9 @@ class HomeViewModelTest {
 
     @Test
     fun homeViewModel_onSearchQueryChange_filtersItems() = runTest {
-        val location = Location(id = 1, name = "Kitchen")
-        val item1 = Item(id = 1, name = "Milk", locationId = 1)
-        val item2 = Item(id = 2, name = "Eggs", locationId = 1)
+        val location = Location(id = "1", name = "Kitchen")
+        val item1 = Item(id = "1", name = "Milk", locationId = "1")
+        val item2 = Item(id = "2", name = "Eggs", locationId = "1")
         
         repository.insertLocation(location)
         repository.insertItem(item1)

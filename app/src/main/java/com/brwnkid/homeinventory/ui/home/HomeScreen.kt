@@ -81,7 +81,7 @@ import androidx.compose.material3.TextButton
 @Composable
 fun HomeScreen(
     navigateToItemEntry: () -> Unit,
-    navigateToItemEdit: (Int) -> Unit,
+    navigateToItemEdit: (String) -> Unit,
     navigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(factory = AppViewModelProvider.Factory)

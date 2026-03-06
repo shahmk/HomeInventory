@@ -76,7 +76,7 @@ fun InventoryNavHost(
         }
         composable(
             route = "${InventoryScreen.ItemEdit.name}/{itemId}",
-            arguments = listOf(navArgument("itemId") { type = NavType.IntType })
+            arguments = listOf(navArgument("itemId") { type = NavType.StringType })
         ) {
             ItemEntryScreen(
                 navigateBack = { navController.popBackStack() },

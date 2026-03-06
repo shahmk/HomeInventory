@@ -206,7 +206,7 @@ fun ItemEntryBody(
         )
         Button(
             onClick = {
-                if (itemUiState.itemDetails.quantity == "0" && itemUiState.itemDetails.id != 0) {
+                if (itemUiState.itemDetails.quantity == "0" && itemUiState.itemDetails.id.isNotBlank()) {
                     showQuantityZeroConfirmation = true
                 } else {
                     onSaveClick()
@@ -218,7 +218,7 @@ fun ItemEntryBody(
         ) {
             Text(text = "Save")
         }
-        if (itemUiState.itemDetails.id != 0) {
+        if (itemUiState.itemDetails.id.isNotBlank()) {
             OutlinedButton(
                 onClick = { showDeleteConfirmation = true },
                 shape = MaterialTheme.shapes.small,

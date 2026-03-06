@@ -6,6 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Intent
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.common.api.ApiException
 import com.brwnkid.homeinventory.data.BackupRepository
 import kotlinx.coroutines.launch
 
@@ -16,11 +19,27 @@ sealed interface BackupUiState {
     data class Error(val message: String) : BackupUiState
 }
 
+sealed interface SyncUiState {
+    object Idle : SyncUiState
+    object Loading : SyncUiState
+    data class Success(val message: String, val lastSync: Long = 0) : SyncUiState
+    data class Error(val message: String) : SyncUiState
+}
+
 class SettingsViewModel(
-    private val backupRepository: BackupRepository
+    private val backupRepository: com.brwnkid.homeinventory.data.BackupRepository,
+    private val syncManager: com.brwnkid.homeinventory.data.sync.SyncManager,
+    val authManager: com.brwnkid.homeinventory.data.sync.GoogleDriveAuthManager
 ) : ViewModel() {
     var backupUiState: BackupUiState by mutableStateOf(BackupUiState.Idle)
         private set
+
+    var syncUiState: SyncUiState by mutableStateOf(SyncUiState.Idle)
+        private set
+
+    var signedInAccount: GoogleSignInAccount? by mutableStateOf(authManager.getSignedInAccount())
+        private set
+
 
     fun performBackup(uri: Uri) {
         viewModelScope.launch {
@@ -48,5 +67,45 @@ class SettingsViewModel(
 
     fun resetState() {
         backupUiState = BackupUiState.Idle
+        syncUiState = SyncUiState.Idle
+    }
+
+    fun handleSignInResult(intent: Intent?) {
+        try {
+            signedInAccount = authManager.getSignedInAccountFromIntent(intent)
+            syncUiState = SyncUiState.Idle
+        } catch (e: ApiException) {
+            e.printStackTrace()
+            val statusCode = e.statusCode
+            var errorMsg = "Sign in failed (Code: $statusCode)."
+            if (statusCode == 10) {
+                errorMsg += " Make sure your SHA-1 fingerprint is added to the Google Cloud Console OAuth credentials."
+            }
+            syncUiState = SyncUiState.Error(errorMsg)
+            signedInAccount = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            syncUiState = SyncUiState.Error("Sign in failed: ${e.message}")
+            signedInAccount = null
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            authManager.signOut()
+            signedInAccount = null
+        }
+    }
+
+    fun performSync() {
+        viewModelScope.launch {
+            syncUiState = SyncUiState.Loading
+            val result = syncManager.sync()
+            syncUiState = if (result.isSuccess) {
+                SyncUiState.Success("Sync completed", System.currentTimeMillis())
+            } else {
+                SyncUiState.Error("Sync failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
     }
 }

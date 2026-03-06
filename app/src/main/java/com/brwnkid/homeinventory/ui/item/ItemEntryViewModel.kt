@@ -19,12 +19,13 @@ import androidx.lifecycle.SavedStateHandle
 
 class ItemEntryViewModel(
     savedStateHandle: SavedStateHandle,
-    private val itemsRepository: InventoryRepository
+    private val itemsRepository: InventoryRepository,
+    private val syncManager: com.brwnkid.homeinventory.data.sync.SyncManager
 ) : ViewModel() {
     var itemUiState by mutableStateOf(ItemUiState())
         private set
 
-    private val itemId: Int = savedStateHandle["itemId"] ?: 0
+    private val itemId: String = savedStateHandle["itemId"] ?: ""
 
     val locationList: StateFlow<List<Location>> =
         itemsRepository.getAllLocationsStream()
@@ -35,7 +36,7 @@ class ItemEntryViewModel(
             )
 
     init {
-        if (itemId > 0) {
+        if (itemId.isNotBlank()) {
             viewModelScope.launch {
                 itemsRepository.getItemStream(itemId)
                     .filterNotNull()
@@ -65,23 +66,26 @@ class ItemEntryViewModel(
 
     suspend fun saveItem() {
         if (validateInput()) {
-            if (itemId > 0) {
+            if (itemId.isNotBlank()) {
                 itemsRepository.updateItem(itemUiState.itemDetails.toItem().copy(id = itemId))
             } else {
                 itemsRepository.insertItem(itemUiState.itemDetails.toItem())
             }
+            syncManager.sync()
         }
     }
 
     suspend fun deleteItem() {
-        if (itemId > 0) {
+        if (itemId.isNotBlank()) {
             itemsRepository.deleteItem(itemUiState.itemDetails.toItem().copy(id = itemId))
+            syncManager.sync()
         }
     }
 
     suspend fun saveLocation(name: String) {
         if (name.isNotBlank()) {
             itemsRepository.insertLocation(Location(name = name))
+            syncManager.sync()
         }
     }
 
@@ -177,7 +181,7 @@ data class ItemUiState(
 )
 
 data class ItemDetails(
-    val id: Int = 0,
+    val id: String = "",
     val name: String = "",
     val quantity: String = "1",
     val locationId: String = "",
@@ -186,10 +190,10 @@ data class ItemDetails(
 )
 
 fun ItemDetails.toItem(): Item = Item(
-    id = id,
+    id = id.ifBlank { java.util.UUID.randomUUID().toString() },
     name = name,
     quantity = quantity.toIntOrNull() ?: 0,
-    locationId = locationId.toIntOrNull() ?: 0,
+    locationId = locationId,
     description = description,
     imageUris = imageUris
 )

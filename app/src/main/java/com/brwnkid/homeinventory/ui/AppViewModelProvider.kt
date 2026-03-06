@@ -14,16 +14,24 @@ import androidx.lifecycle.createSavedStateHandle
 object AppViewModelProvider {
     val Factory = viewModelFactory {
         initializer {
-            HomeViewModel(inventoryApplication().container.itemsRepository)
+            HomeViewModel(
+                inventoryApplication().container.itemsRepository,
+                inventoryApplication().container.syncManager
+            )
         }
         initializer {
             ItemEntryViewModel(
                 this.createSavedStateHandle(),
-                inventoryApplication().container.itemsRepository
+                inventoryApplication().container.itemsRepository,
+                inventoryApplication().container.syncManager
             )
         }
         initializer {
-            SettingsViewModel(inventoryApplication().container.backupRepository)
+            SettingsViewModel(
+                inventoryApplication().container.backupRepository,
+                inventoryApplication().container.syncManager,
+                inventoryApplication().container.authManager
+            )
         }
     }
 }

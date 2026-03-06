@@ -5,10 +5,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -38,7 +42,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val context = LocalContext.current
-    val uiState = viewModel.backupUiState
+    val backupState = viewModel.backupUiState
+    val syncState = viewModel.syncUiState
 
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
@@ -50,6 +55,14 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { viewModel.performRestore(it) }
+    }
+
+    val signInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.handleSignInResult(result.data)
+        }
     }
 
     Scaffold(
@@ -81,7 +94,7 @@ fun SettingsScreen(
             Text(
                 text = "Backup & Restore",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             )
 
             Button(
@@ -103,20 +116,99 @@ fun SettingsScreen(
                 Text("Restore Data")
             }
 
-            when (uiState) {
+            when (backupState) {
                 is BackupUiState.Loading -> {
                     CircularProgressIndicator()
                     Text("Processing...")
                 }
                 is BackupUiState.Success -> {
                     Text(
-                        text = uiState.message,
+                        text = backupState.message,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 is BackupUiState.Error -> {
                     Text(
-                        text = uiState.message,
+                        text = backupState.message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                else -> {}
+            }
+
+            // Cloud Sync Section
+            Text(
+                text = "Cloud Sync & Sharing",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.fillMaxWidth().padding(top = 24.dp)
+            )
+            
+            Text(
+                text = "The app will automatically create a 'Home Inventory App' folder in your Google Drive. To share with family, simply open your Drive and share that folder with them.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val account = viewModel.signedInAccount
+                    if (account != null) {
+                        Text(
+                            text = "Signed in as: ${account.email}",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.signOut() },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Sign Out")
+                            }
+                            Button(
+                                onClick = { viewModel.performSync() },
+                                modifier = Modifier.weight(1f),
+                                enabled = syncState !is SyncUiState.Loading
+                            ) {
+                                Icon(Icons.Default.CloudSync, contentDescription = null)
+                                Text(" Sync Now", modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    } else {
+                         Button(
+                            onClick = { signInLauncher.launch(viewModel.authManager.getSignInIntent()) },
+                            modifier = Modifier.fillMaxWidth()
+                         ) {
+                            Icon(Icons.Default.FolderShared, contentDescription = null)
+                            Text(" Sign in with Google", modifier = Modifier.padding(start = 8.dp))
+                         }
+                    }
+                }
+            }
+            
+            when (syncState) {
+                is SyncUiState.Loading -> {
+                    CircularProgressIndicator()
+                    Text("Syncing with cloud...")
+                }
+                is SyncUiState.Success -> {
+                    Text(
+                        text = "${syncState.message} (Last sync: ${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(syncState.lastSync))})",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                is SyncUiState.Error -> {
+                    Text(
+                        text = syncState.message,
                         color = MaterialTheme.colorScheme.error
                     )
                 }

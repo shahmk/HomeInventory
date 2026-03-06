@@ -18,12 +18,22 @@ sealed class HomeUiItem {
 
 data class HomeUiState(val homeItems: List<HomeUiItem> = listOf())
 
-class HomeViewModel(private val itemsRepository: InventoryRepository) : ViewModel() {
+class HomeViewModel(
+    private val itemsRepository: InventoryRepository,
+    private val syncManager: com.brwnkid.homeinventory.data.sync.SyncManager
+) : ViewModel() {
     private val _searchQuery = kotlinx.coroutines.flow.MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val _isCardView = kotlinx.coroutines.flow.MutableStateFlow(false)
     val isCardView: StateFlow<Boolean> = _isCardView.asStateFlow()
+
+    init {
+        // Auto-sync on app open
+        viewModelScope.launch {
+            syncManager.sync()
+        }
+    }
 
     fun toggleViewMode() {
         _isCardView.value = !_isCardView.value

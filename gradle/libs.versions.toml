@@ -17,6 +17,9 @@ turbine = "1.1.0"
 
 mlkitTextRecognition = "19.0.0"
 kotlinxSerialization = "1.6.3"
+playServicesAuth = "21.0.0"
+googleApiClientAndroid = "1.33.0"
+googleApiServicesDrive = "v3-rev20220815-2.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -46,6 +49,9 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClientAndroid" }
+google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleApiServicesDrive" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -3,6 +3,7 @@ package com.brwnkid.homeinventory.data
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 import kotlinx.serialization.Serializable
 
@@ -19,12 +20,14 @@ import kotlinx.serialization.Serializable
     ]
 )
 data class Item(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    @PrimaryKey
+    val id: String = UUID.randomUUID().toString(),
     val name: String,
     val description: String? = null,
     val quantity: Int = 1,
-    val locationId: Int,
+    val locationId: String,
     val imageUris: List<String> = emptyList(),
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val lastModified: Long = System.currentTimeMillis(),
+    val isDeleted: Boolean = false
 )

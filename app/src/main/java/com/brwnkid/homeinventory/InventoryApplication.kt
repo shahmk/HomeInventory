@@ -19,6 +19,8 @@ class InventoryApplication : Application() {
 interface AppContainer {
     val itemsRepository: InventoryRepository
     val backupRepository: BackupRepository
+    val authManager: com.brwnkid.homeinventory.data.sync.GoogleDriveAuthManager
+    val syncManager: com.brwnkid.homeinventory.data.sync.SyncManager
 }
 
 class AppDataContainer(private val context: Context) : AppContainer {
@@ -28,5 +30,13 @@ class AppDataContainer(private val context: Context) : AppContainer {
     
     override val backupRepository: BackupRepository by lazy {
         BackupRepository(context, InventoryDatabase.getDatabase(context).inventoryDao())
+    }
+
+    override val authManager: com.brwnkid.homeinventory.data.sync.GoogleDriveAuthManager by lazy {
+        com.brwnkid.homeinventory.data.sync.GoogleDriveAuthManager(context)
+    }
+
+    override val syncManager: com.brwnkid.homeinventory.data.sync.SyncManager by lazy {
+        com.brwnkid.homeinventory.data.sync.SyncManager(context, itemsRepository, authManager)
     }
 }

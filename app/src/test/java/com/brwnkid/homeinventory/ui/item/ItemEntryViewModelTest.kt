@@ -20,6 +20,7 @@ class ItemEntryViewModelTest {
 
     private lateinit var viewModel: ItemEntryViewModel
     private lateinit var repository: FakeInventoryRepository
+    private val syncManager = org.mockito.Mockito.mock(com.brwnkid.homeinventory.data.sync.SyncManager::class.java)
 
     @Before
     fun setup() {
@@ -28,7 +29,7 @@ class ItemEntryViewModelTest {
 
     @Test
     fun itemEntryViewModel_initialState_isCorrect() = runTest {
-        viewModel = ItemEntryViewModel(SavedStateHandle(), repository)
+        viewModel = ItemEntryViewModel(SavedStateHandle(), repository, syncManager)
         val state = viewModel.itemUiState
         assertEquals("", state.itemDetails.name)
         assertFalse(state.isEntryValid)
@@ -36,21 +37,21 @@ class ItemEntryViewModelTest {
 
     @Test
     fun itemEntryViewModel_updateUiState_validInput_setsIsEntryValid() = runTest {
-        viewModel = ItemEntryViewModel(SavedStateHandle(), repository)
+        viewModel = ItemEntryViewModel(SavedStateHandle(), repository, syncManager)
         viewModel.updateUiState(ItemDetails(name = "Milk", locationId = "1"))
         assertTrue(viewModel.itemUiState.isEntryValid)
     }
 
     @Test
     fun itemEntryViewModel_updateUiState_invalidInput_setsIsEntryValidFalse() = runTest {
-        viewModel = ItemEntryViewModel(SavedStateHandle(), repository)
+        viewModel = ItemEntryViewModel(SavedStateHandle(), repository, syncManager)
         viewModel.updateUiState(ItemDetails(name = "", locationId = "1"))
         assertFalse(viewModel.itemUiState.isEntryValid)
     }
 
     @Test
     fun itemEntryViewModel_saveItem_insertsNewItem() = runTest {
-        viewModel = ItemEntryViewModel(SavedStateHandle(), repository)
+        viewModel = ItemEntryViewModel(SavedStateHandle(), repository, syncManager)
         viewModel.updateUiState(ItemDetails(name = "Milk", locationId = "1", quantity = "2"))
         viewModel.saveItem()
         
@@ -61,10 +62,10 @@ class ItemEntryViewModelTest {
 
     @Test
     fun itemEntryViewModel_loadItem_forEditing() = runTest {
-        val item = Item(id = 1, name = "Milk", locationId = 1, quantity = 5)
+        val item = Item(id = "1", name = "Milk", locationId = "1", quantity = 5)
         repository.insertItem(item)
         
-        viewModel = ItemEntryViewModel(SavedStateHandle(mapOf("itemId" to 1)), repository)
+        viewModel = ItemEntryViewModel(SavedStateHandle(mapOf("itemId" to "1")), repository, syncManager)
         
         // Wait for coroutine in init to complete
         // Since we use UnconfinedTestDispatcher in MainDispatcherRule, it should be immediate
@@ -77,7 +78,7 @@ class ItemEntryViewModelTest {
 
     @Test
     fun itemEntryViewModel_onNameSelected_updatesNameAndDescription() = runTest {
-        viewModel = ItemEntryViewModel(SavedStateHandle(), repository)
+        viewModel = ItemEntryViewModel(SavedStateHandle(), repository, syncManager)
         viewModel.updateUiState(
             ItemDetails(description = "Existing"),
             candidateNames = listOf("Milk", "Fresh")
