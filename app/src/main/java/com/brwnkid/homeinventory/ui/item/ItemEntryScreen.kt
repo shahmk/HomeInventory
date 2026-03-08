@@ -292,7 +292,6 @@ fun ItemInputForm(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var newLocationName by remember { mutableStateOf("") }
     var locationName by remember { mutableStateOf("") } // For display
     
     // Update display name if locationId matches a location
@@ -307,7 +306,6 @@ fun ItemInputForm(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         val context = LocalContext.current
-        var showImageSourceDialog by remember { mutableStateOf(false) }
         var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
         val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -335,57 +333,6 @@ fun ItemInputForm(
                 }
             }
         )
-        
-        if (showImageSourceDialog) {
-            AlertDialog(
-                onDismissRequest = { showImageSourceDialog = false },
-                title = { Text("Choose Image Source") },
-                text = {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    showImageSourceDialog = false
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                }
-                                .padding(16.dp),
-                             verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                            Text("  Gallery", modifier = Modifier.padding(start = 16.dp))
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    showImageSourceDialog = false
-                                    val photoFile = createImageFile(context)
-                                    tempPhotoUri = FileProvider.getUriForFile(
-                                        context,
-                                        "${context.packageName}.fileprovider",
-                                        photoFile
-                                    )
-                                    cameraLauncher.launch(tempPhotoUri!!)
-                                }
-                                .padding(16.dp),
-                             verticalAlignment = Alignment.CenterVertically
-                        ) {
-                             Icon(Icons.Default.CameraAlt, contentDescription = null)
-                             Text("  Camera", modifier = Modifier.padding(start = 16.dp))
-                        }
-                    }
-                },
-                confirmButton = {},
-                dismissButton = {
-                    TextButton(onClick = { showImageSourceDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
 
         // Image List
         androidx.compose.foundation.lazy.LazyRow(
@@ -452,7 +399,13 @@ fun ItemInputForm(
                     modifier = Modifier
                         .size(150.dp)
                         .clickable {
-                            showImageSourceDialog = true
+                            val photoFile = createImageFile(context)
+                            tempPhotoUri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                photoFile
+                            )
+                            cameraLauncher.launch(tempPhotoUri!!)
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -462,7 +415,32 @@ fun ItemInputForm(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.AddPhotoAlternate,
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = "Take Photo",
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Text(text = "Take Photo")
+                    }
+                }
+            }
+            item {
+                Box(
+                    modifier = Modifier
+                        .size(150.dp)
+                        .clickable {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoLibrary,
                             contentDescription = "Add Photo",
                             modifier = Modifier.size(48.dp)
                         )
@@ -540,30 +518,6 @@ fun ItemInputForm(
                         onClick = { expanded = false }
                     )
                 }
-            }
-        }
-
-        // Add New Location
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = newLocationName,
-                onValueChange = { newLocationName = it },
-                label = { Text("New Location Name") },
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-            OutlinedButton(
-                onClick = { 
-                    onAddLocation(newLocationName)
-                    newLocationName = ""
-                },
-                enabled = newLocationName.isNotBlank()
-            ) {
-                Text("Add Loc")
             }
         }
 

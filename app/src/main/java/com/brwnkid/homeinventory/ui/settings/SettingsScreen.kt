@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -144,7 +145,7 @@ fun SettingsScreen(
             )
             
             Text(
-                text = "The app will automatically create a 'Home Inventory App' folder in your Google Drive. To share with family, simply open your Drive and share that folder with them.",
+                text = "The app will automatically create a 'Home Inventory App' folder in your Google Drive. You can invite other users to access this folder below.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
@@ -181,6 +182,26 @@ fun SettingsScreen(
                             ) {
                                 Icon(Icons.Default.CloudSync, contentDescription = null)
                                 Text(" Sync Now", modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = viewModel.shareEmail,
+                                onValueChange = { viewModel.updateShareEmail(it) },
+                                label = { Text("Family Member Email") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            Button(
+                                onClick = { viewModel.shareWithEmail() },
+                                enabled = viewModel.shareEmail.isNotBlank() && syncState !is SyncUiState.Loading
+                            ) {
+                                Text("Share")
                             }
                         }
                     } else {

@@ -40,6 +40,13 @@ class SettingsViewModel(
     var signedInAccount: GoogleSignInAccount? by mutableStateOf(authManager.getSignedInAccount())
         private set
 
+    var shareEmail: String by mutableStateOf("")
+        private set
+
+    fun updateShareEmail(email: String) {
+        shareEmail = email
+    }
+
 
     fun performBackup(uri: Uri) {
         viewModelScope.launch {
@@ -105,6 +112,20 @@ class SettingsViewModel(
                 SyncUiState.Success("Sync completed", System.currentTimeMillis())
             } else {
                 SyncUiState.Error("Sync failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
+    fun shareWithEmail() {
+        if (shareEmail.isBlank()) return
+        viewModelScope.launch {
+            syncUiState = SyncUiState.Loading
+            val result = syncManager.shareFolderWithEmail(shareEmail)
+            syncUiState = if (result.isSuccess) {
+                shareEmail = ""
+                SyncUiState.Success("Folder shared successfully", System.currentTimeMillis())
+            } else {
+                SyncUiState.Error("Failed to share folder: ${result.exceptionOrNull()?.message}")
             }
         }
     }

@@ -61,6 +61,28 @@ class SyncManager(
         }
     }
 
+    suspend fun shareFolderWithEmail(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val driveService = getDriveService() ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        try {
+            val rootId = getOrCreateFolder(driveService, "root", "Home Inventory App")
+            
+            val permission = com.google.api.services.drive.model.Permission()
+                .setType("user")
+                .setRole("writer")
+                .setEmailAddress(email)
+                
+            driveService.permissions().create(rootId, permission)
+                .setSendNotificationEmail(true)
+                .execute()
+                
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
     private fun getOrCreateFolder(driveService: Drive, parentId: String, name: String): String {
         val query = "mimeType = 'application/vnd.google-apps.folder' and '$parentId' in parents and name = '$name' and trashed = false"
         val result = driveService.files().list().setQ(query).setSpaces("drive").execute()

@@ -144,7 +144,15 @@ fun HomeContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Home Inventory") },
+                title = { 
+                    InventorySearchBar(
+                        query = searchQuery,
+                        onQueryChange = onSearchQueryChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 8.dp)
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -261,13 +269,6 @@ fun HomeContent(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            InventorySearchBar(
-                query = searchQuery,
-                onQueryChange = onSearchQueryChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            )
             HomeBody(
                 homeItems = homeUiState.homeItems,
                 isCardView = isCardView,

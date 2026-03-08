@@ -13,6 +13,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import com.brwnkid.homeinventory.test.FakeInventoryRepository
+import org.mockito.kotlin.whenever
 
 class HomeViewModelTest {
 
@@ -24,8 +25,11 @@ class HomeViewModelTest {
     private val syncManager = org.mockito.Mockito.mock(com.brwnkid.homeinventory.data.sync.SyncManager::class.java)
 
     @Before
-    fun setup() {
+    fun setup() = runTest {
         repository = FakeInventoryRepository()
+        whenever(syncManager.sync()).thenReturn(Result.success(Unit))
+        // To avoid init block seeding 7 default locations and breaking tests, we pre-populate.
+        repository.insertLocation(Location(id = "dummy", name = "Dummy"))
         viewModel = HomeViewModel(repository, syncManager)
     }
 
@@ -33,7 +37,8 @@ class HomeViewModelTest {
     fun homeViewModel_initialState_isCorrect() = runTest {
         viewModel.homeUiState.test {
             val initialState = awaitItem()
-            assertTrue(initialState.homeItems.isEmpty())
+            assertEquals(1, initialState.homeItems.filterIsInstance<HomeUiItem.Header>().size)
+            assertEquals("Dummy", (initialState.homeItems[0] as HomeUiItem.Header).name)
         }
     }
 
@@ -54,8 +59,9 @@ class HomeViewModelTest {
                 state = awaitItem()
             }
             
-            assertEquals(1, state.homeItems.filterIsInstance<HomeUiItem.Header>().size)
-            assertEquals("Kitchen", (state.homeItems[0] as HomeUiItem.Header).name)
+            assertEquals(2, state.homeItems.filterIsInstance<HomeUiItem.Header>().size)
+            assertEquals("Dummy", (state.homeItems[0] as HomeUiItem.Header).name)
+            assertEquals("Kitchen", (state.homeItems[1] as HomeUiItem.Header).name)
             assertEquals(2, state.homeItems.filterIsInstance<HomeUiItem.ItemEntry>().size)
         }
     }
